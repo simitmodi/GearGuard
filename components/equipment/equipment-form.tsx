@@ -43,6 +43,10 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
     defaultValues: {
       name: "",
       department: "",
+      serialNumber: "",
+      location: "",
+      assignedTo: "",
+      maintenanceTeam: "",
     },
   })
 
