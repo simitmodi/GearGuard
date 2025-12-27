@@ -1,5 +1,5 @@
 
-import { createTeam } from "@/lib/db/teams";
+import { createTeam } from "@/lib/db/maintenance-teams";
 import { createTechnician, updateTechnician, getTechnicianById } from "@/lib/db/technicians";
 import { createEquipment, scrapEquipment, getEquipmentById } from "@/lib/db/equipment";
 import { createRequest, createPreventiveRequest, pickupRequest, getRequestById, updateRequestStatus } from "@/lib/db/requests";
