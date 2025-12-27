@@ -8,6 +8,7 @@ import { updateRequestStatus } from "@/lib/db/requests"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Clock } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -144,36 +145,51 @@ export function KanbanBoard() {
                       return (
                         <Draggable key={req.id} draggableId={req.id} index={index}>
                           {(provided) => (
-                            <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`cursor-grab active:cursor-grabbing ${isOverdue ? 'border-red-500 border-2' : ''}`}
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`cursor-grab active:cursor-grabbing ${isOverdue ? 'border-red-500 border-2 rounded-xl' : ''}`}
+                                style={{
+                                    ...provided.draggableProps.style,
+                                    marginBottom: '0.75rem' // Gap replacement
+                                }}
                             >
-                              <CardHeader className="p-4 pb-2">
-                                <div className="flex justify-between items-start">
-                                  <Badge variant={req.type === 'preventive' ? 'outline' : 'default'} className="mb-2">
-                                    {req.type}
-                                  </Badge>
-                                  {isOverdue && <AlertCircle className="h-4 w-4 text-red-500" />}
-                                </div>
-                                <CardTitle className="text-sm font-medium leading-tight">
-                                  {req.equipmentName}
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-4 pt-2 text-xs text-muted-foreground">
-                                <p className="line-clamp-2 mb-2">{req.description}</p>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>
-                                    {new Date(req.createdAt).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <div className="mt-2 text-[10px] uppercase font-bold text-primary/70">
-                                  {req.maintenanceTeam}
-                                </div>
-                              </CardContent>
-                            </Card>
+                                <Card className={isOverdue ? 'border-0 shadow-none' : ''}>
+                                  <CardHeader className="p-4 pb-2">
+                                    <div className="flex justify-between items-start">
+                                      <Badge variant={req.type === 'preventive' ? 'outline' : 'default'} className="mb-2">
+                                        {req.type}
+                                      </Badge>
+                                      {isOverdue && <AlertCircle className="h-4 w-4 text-red-500" />}
+                                    </div>
+                                    <CardTitle className="text-sm font-medium leading-tight">
+                                      {req.equipmentName}
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="p-4 pt-2 text-xs text-muted-foreground">
+                                    <p className="line-clamp-2 mb-2">{req.description}</p>
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      <span>
+                                        {new Date(req.createdAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <div className="mt-2 flex justify-between items-center">
+                                      <div className="text-[10px] uppercase font-bold text-primary/70">
+                                        {req.maintenanceTeam}
+                                      </div>
+                                      {req.technicianName && (
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                                            {req.technicianName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                            </div>
                           )}
                         </Draggable>
                       )

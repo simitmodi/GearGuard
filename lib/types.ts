@@ -10,6 +10,7 @@ export interface Equipment {
   id: string;
   name: string;
   department: string;
+  category?: string; // e.g. "HVAC", "Machinery"
   serialNumber: string | null;
   purchaseDate: string | null;
   warrantyExpiration: string | null;
@@ -70,6 +71,7 @@ export interface MaintenanceRequest {
   equipmentId: string;
   equipmentName: string;
   department: string;
+  category?: string; // Snapshot of equipment category
   technicianId: string | null;
   technicianName: string | null;
   type: RequestType;
@@ -99,6 +101,7 @@ export type RequestStatus = "NEW" | "IN_PROGRESS" | "REPAIRED" | "SCRAP";
 export interface CreateEquipmentInput {
   name: string;
   department: string;
+  category?: string;
   serialNumber?: string;
   purchaseDate?: string;
   warrantyExpiration?: string;
@@ -134,6 +137,9 @@ export interface CreateRequestInput {
   equipmentId: string;
   type: RequestType;
   scheduledDate?: string;
+  category?: string;
+  maintenanceTeam?: string;
+  teamId?: string;
 }
 
 export interface UpdateRequestStatusInput {

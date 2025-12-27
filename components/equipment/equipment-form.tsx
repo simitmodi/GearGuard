@@ -23,9 +23,10 @@ import { toast } from "sonner"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  department: z.string().min(1, "Department is required"),
+  department: z.string().min(2, "Department is required"),
+  category: z.string().optional(),
   serialNumber: z.string().optional(),
-  purchaseDate: z.date().optional(),
+  purchaseDate: z.string().optional(), // ISO date string
   warrantyExpiration: z.date().optional(),
   location: z.string().optional(),
   assignedTo: z.string().optional(),
@@ -44,6 +45,7 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
     defaultValues: {
       name: "",
       department: "",
+      category: "",
       serialNumber: "",
       location: "",
       assignedTo: "",
@@ -56,7 +58,7 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
   React.useEffect(() => {
     // Only fetching client side needed here, imported function
     const loadTeams = async () => {
-      const { getAllTeams } = await import("@/lib/db/teams");
+      const { getAllTeams } = await import("@/lib/db/maintenance-teams");
       const t = await getAllTeams();
       setTeams(t);
     }
@@ -70,8 +72,9 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
       await createEquipment({
         name: values.name,
         department: values.department,
+        category: values.category || undefined,
         serialNumber: values.serialNumber,
-        purchaseDate: values.purchaseDate?.toISOString(),
+        purchaseDate: values.purchaseDate,
         warrantyExpiration: values.warrantyExpiration?.toISOString(),
         location: values.location,
         assignedTo: values.assignedTo,

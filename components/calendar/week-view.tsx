@@ -16,9 +16,11 @@ interface WeekViewProps {
   currentDate: Date
   events: any[]
   onEventClick?: (event: any) => void
+  onDateClick?: (date: Date) => void
 }
 
-export function WeekView({ currentDate, events, onEventClick }: WeekViewProps) {
+export function WeekView({ currentDate, events, onEventClick, onDateClick }: WeekViewProps) {
+  // ... dependencies ...
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }) // Monday start
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 })
   
@@ -49,9 +51,10 @@ export function WeekView({ currentDate, events, onEventClick }: WeekViewProps) {
             <div 
                 key={`header-${day.toString()}`} 
                 className={cn(
-                    "sticky top-0 z-30 bg-background border-b p-2 text-center flex flex-col items-center justify-center h-[60px] border-r last:border-r-0", 
+                    "sticky top-0 z-30 bg-background border-b p-2 text-center flex flex-col items-center justify-center h-[60px] border-r last:border-r-0 cursor-pointer hover:bg-muted/50 transition-colors", 
                     isToday(day) && "bg-accent/50"
                 )}
+                onClick={() => onDateClick?.(day)}
             >
                 <span className="text-xs text-muted-foreground uppercase">{format(day, "EEE")}</span>
                 <span className={cn(
@@ -82,7 +85,6 @@ export function WeekView({ currentDate, events, onEventClick }: WeekViewProps) {
             const isCurrentDay = isToday(day)
             
             // Calculate position for current time indicator
-            // Start hour is 6, row height is 80px (h-20)
             const currentHour = now.getHours()
             const currentMinute = now.getMinutes()
             const startHour = 6
@@ -93,7 +95,11 @@ export function WeekView({ currentDate, events, onEventClick }: WeekViewProps) {
             }
 
             return (
-                <div key={`body-${day.toString()}`} className="divide-y relative border-r last:border-r-0">
+                <div 
+                    key={`body-${day.toString()}`} 
+                    className="divide-y relative border-r last:border-r-0 cursor-pointer hover:bg-muted/5 transition-colors"
+                    onClick={() => onDateClick?.(day)}
+                >
                      {/* Background Grid Lines matching logic to Time Column */}
                     {hours.map(hour => (
                          <div key={`grid-${day}-${hour}`} className="h-20 border-b border-dashed border-border/50"></div>
@@ -120,10 +126,13 @@ export function WeekView({ currentDate, events, onEventClick }: WeekViewProps) {
                                 height: "70px",
                                 zIndex: 10
                             }}
-                             onClick={() => onEventClick?.(event)}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               onEventClick?.(event);
+                             }}
                         >
                             <div className="font-semibold truncate">{event.equipmentName}</div>
-                            <div className="truncate opacity-75">{event.description}</div>
+                            <div className="truncate opacity-75">{event.title}</div>
                         </div>
                     ))}
                 </div>

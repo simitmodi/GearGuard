@@ -6,14 +6,14 @@ import { db } from "@/lib/firebase"
 import { CalendarHeader } from "@/components/calendar/calendar-header"
 import { WeekView } from "@/components/calendar/week-view"
 import { MiniCalendar } from "@/components/calendar/mini-calendar"
+import { RequestForm } from "@/components/requests/request-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
-import { isSameDay } from "date-fns"
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [requests, setRequests] = useState<any[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState<any>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
 
   useEffect(() => {
     // Fetch all requests
@@ -26,6 +26,11 @@ export default function CalendarPage() {
     })
     return () => unsubscribe()
   }, [])
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date)
+    setIsDialogOpen(true)
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] gap-4">
@@ -46,11 +51,25 @@ export default function CalendarPage() {
                 currentDate={currentDate} 
                 events={requests} 
                 onEventClick={(evt) => console.log(evt)}
+                onDateClick={handleDateClick}
             />
         </div>
       </div>
 
-       {/* Mobile/Tablet Fallback or Addition could go here if needed, but WeekView scales via scroll */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Maintenance</DialogTitle>
+            <DialogDescription>
+              Create a maintenance request for {selectedDate?.toLocaleDateString()}.
+            </DialogDescription>
+          </DialogHeader>
+          <RequestForm 
+            onSuccess={() => setIsDialogOpen(false)} 
+            preselectedDate={selectedDate}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

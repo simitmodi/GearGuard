@@ -15,14 +15,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Team } from "@/lib/types"
-import { createTeam, getTeams } from "@/lib/db/teams"
+import { MaintenanceTeam } from "@/lib/types"
+import { createTeam, getAllTeams } from "@/lib/db/maintenance-teams"
 import { toast } from "sonner"
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 export default function TeamsPage() {
-    const [teams, setTeams] = useState<Team[]>([])
+    const [teams, setTeams] = useState<MaintenanceTeam[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,7 +36,7 @@ export default function TeamsPage() {
         // Real-time listener
         const q = query(collection(db, "teams"), orderBy("createdAt", "desc"))
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team))
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceTeam))
             setTeams(items)
             setIsLoading(false)
         }, (error) => {
@@ -57,7 +57,8 @@ export default function TeamsPage() {
         const result = await createTeam({
             name,
             company,
-            members: memberList
+            members: memberList,
+            description: "" // Optional description
         })
 
         if (result.success) {
@@ -68,7 +69,7 @@ export default function TeamsPage() {
             setMembers("")
             setCompany("My Company (San Francisco)")
         } else {
-            toast.error("Failed to create team")
+            toast.error(result.error || "Failed to create team")
         }
         setIsSubmitting(false)
     }

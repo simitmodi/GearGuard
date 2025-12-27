@@ -99,6 +99,9 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
     setSelectedEquipment(eq || null)
   }
 
+  // Calculate team name for display
+  const teamName = selectedEquipment?.maintenanceTeam || (selectedEquipment?.teamId ? "Specialized Team" : "General");
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     // Validate preventive requires scheduledDate
     if (values.type === "PREVENTIVE" && !values.scheduledDate) {
@@ -117,14 +120,7 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
       let result;
 
       if (values.type === "PREVENTIVE") {
-        // Explicitly use the new Preventive function
-        // Import it first? It needs to be imported. 
-        // Assuming I add the import at the top in a separate edit or I can't access it. 
-        // I will use `request-types-logic` here.
-
-
-
-        result = await createPreventiveRequest({
+         result = await createPreventiveRequest({
           title: values.title,
           equipmentId: values.equipmentId,
           scheduledDate: values.scheduledDate!.toISOString(),
@@ -137,6 +133,9 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
           equipmentId: values.equipmentId,
           type: values.type,
           scheduledDate: values.scheduledDate?.toISOString() ?? undefined,
+          category: selectedEquipment?.category,
+          maintenanceTeam: teamName,
+          teamId: selectedEquipment?.teamId
         }, { id: profile.id, role: profile.role });
       }
 
@@ -213,8 +212,15 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
 
         {/* Auto-filled Equipment Details */}
         {selectedEquipment && (
-          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <div>Department: <span className="font-medium text-foreground">{selectedEquipment.department}</span></div>
+          <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-md text-sm">
+            <div>
+              <span className="text-muted-foreground block">Category</span>
+              <span className="font-medium">{selectedEquipment.category || "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Maintenance Team</span>
+              <span className="font-medium">{teamName}</span>
+            </div>
           </div>
         )}
 

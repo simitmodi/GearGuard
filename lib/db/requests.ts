@@ -291,6 +291,7 @@ export async function createRequest(
       equipmentId: equipment.id,
       equipmentName: equipment.name,
       department: equipment.department,
+      category: equipment.category || input.category || null,
       technicianId: assignedTechnician?.id ?? null,
       technicianName: assignedTechnician?.name ?? null,
       type: input.type,
@@ -700,6 +701,7 @@ export async function assignRequest(
 /**
  * Pickup a request (Technician claims an unassigned request or starts their own)
  */
+// Exported already
 export async function pickupRequest(
   requestId: string,
   technicianId: string
