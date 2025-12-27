@@ -2,4 +2,4 @@
 export * from "./equipment";
 export * from "./technicians";
 export * from "./requests";
-export * from "./teams";
+// Teams module removed - using department-based assignment instead

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { 
   getTechnicianById, 
   updateTechnician, 
-  updateTechnicianStatus,
-  reassignTechnicianToTeam
+  updateTechnicianStatus
 } from "@/lib/db/technicians";
 import { getRequestsByTechnician } from "@/lib/db/requests";
 import type { ApiResponse, Technician, MaintenanceRequest } from "@/lib/types";
@@ -61,12 +60,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * Request body:
  * {
  *   name?: string,
- *   email?: string,
- *   phone?: string,
- *   role?: "technician" | "senior_technician" | "team_lead",
- *   skills?: string[],
- *   isActive?: boolean,
- *   teamId?: string (to reassign to a different team)
+ *   department?: string,
+ *   isActive?: boolean
  * }
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
@@ -87,18 +82,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await updateTechnicianStatus(id, body.isActive);
     }
 
-    // Handle team reassignment
-    if (body.teamId && body.teamId !== existing.teamId) {
-      await reassignTechnicianToTeam(id, body.teamId);
-    }
-
     // Handle other updates
-    const updates: Partial<Pick<Technician, "name" | "email" | "phone" | "role" | "skills">> = {};
+    const updates: Partial<Technician> = {};
     if (body.name) updates.name = body.name;
-    if (body.email) updates.email = body.email;
-    if (body.phone !== undefined) updates.phone = body.phone;
-    if (body.role) updates.role = body.role;
-    if (body.skills) updates.skills = body.skills;
+    if (body.department) updates.department = body.department;
 
     if (Object.keys(updates).length > 0) {
       await updateTechnician(id, updates);

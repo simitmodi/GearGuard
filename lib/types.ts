@@ -1,243 +1,85 @@
 // ============================================
-// Database Entity Types
+// GEARGUARD - Simplified Data Models
+// Following exact pseudocode specification
 // ============================================
 
 /**
- * Equipment - Central database for all company assets
- * Tracks ownership, technical details, and maintenance responsibility
+ * Equipment - Company assets that need maintenance
  */
 export interface Equipment {
   id: string;
   name: string;
-  serialNumber: string;
-  category: EquipmentCategory;
   department: string;
-  
-  // Ownership tracking
-  assignedTo: string | null; // Employee name who owns/uses this equipment
-  assignedToId: string | null; // Employee/User ID
-  
-  // Location & Physical details
-  location: string;
-  
-  // Purchase & Warranty
-  purchaseDate: string;
-  warrantyExpiryDate: string | null;
-  purchaseCost: number | null;
-  vendor: string | null;
-  
-  // Maintenance responsibility
-  maintenanceTeamId: string;
-  maintenanceTeam: string; // Team name (denormalized for display)
-  defaultTechnicianId: string | null; // Default technician assigned
-  defaultTechnicianName: string | null;
-  
-  // Status tracking
   isUsable: boolean;
-  status: EquipmentStatus;
-  
-  // Maintenance history
-  lastMaintenanceDate: string | null;
-  nextMaintenanceDate: string | null;
-  totalMaintenanceCount: number;
-  openRequestCount: number;
-  
-  // Notes
-  notes: string | null;
-  
+  scrapNote: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type EquipmentCategory = 
-  | "heavy-machinery"
-  | "electronics"
-  | "vehicles"
-  | "tools"
-  | "it-equipment"
-  | "hvac"
-  | "plumbing"
-  | "electrical"
-  | "other";
-
-export type EquipmentStatus = 
-  | "operational"
-  | "under_maintenance"
-  | "scrapped"
-  | "pending_repair";
-
 /**
- * Maintenance Team - Specialized teams for different types of maintenance
- */
-export interface MaintenanceTeam {
-  id: string;
-  name: string;
-  description?: string;
-  specialization: TeamSpecialization;
-  isActive: boolean;
-  memberCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type TeamSpecialization = 
-  | "mechanics"
-  | "electricians"
-  | "it-support"
-  | "hvac"
-  | "plumbing"
-  | "general"
-  | "external-vendor";
-
-/**
- * Technician - Team members who perform maintenance
+ * Technician - Workers who perform maintenance
  */
 export interface Technician {
   id: string;
   name: string;
-  email: string;
-  phone?: string;
-  
-  // Team assignment
-  teamId: string;
-  teamName: string; // Denormalized for display
-  
-  // Role & Status
-  role: "technician" | "senior_technician" | "team_lead";
-  isActive: boolean;
-  
-  // Workload tracking
+  department: string;
   activeTasks: number;
-  completedTasks: number;
-  
-  // Skills
-  skills: string[];
-  
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 /**
- * Maintenance Request - Transactional record for repair jobs
- * Handles the lifecycle of both corrective and preventive maintenance
+ * Maintenance Request - Repair/maintenance job record
+ * Status flow: NEW → IN_PROGRESS → REPAIRED or SCRAP
  */
 export interface MaintenanceRequest {
   id: string;
-  
-  // Request details
-  subject: string; // What is wrong? (e.g., "Leaking Oil")
-  description: string;
-  
-  // Equipment reference (auto-filled from equipment)
+  title: string;
   equipmentId: string;
-  equipmentName: string;
-  equipmentCategory: EquipmentCategory;
-  equipmentLocation: string;
-  
-  // Team assignment (auto-filled from equipment)
-  maintenanceTeamId: string;
-  maintenanceTeam: string;
-  
-  // Technician assignment
+  equipmentName: string; // Denormalized for display
+  department: string;
   technicianId: string | null;
-  technicianName: string | null;
-  
-  // Request type
+  technicianName: string | null; // Denormalized for display
   type: RequestType;
-  
-  // Workflow state
-  stage: RequestStage;
-  
-  // Priority
-  priority: RequestPriority;
-  
-  // Scheduling
-  scheduledDate: string | null;
+  status: RequestStatus;
+  scheduledDate: string | null; // For preventive maintenance
   dueDate: string | null;
-  
-  // Duration tracking (for completed requests)
-  startedAt: string | null;
-  completedAt: string | null;
-  duration: number | null; // Hours spent on repair
-  
-  // Overdue tracking
   isOverdue: boolean;
-  
-  // Scrap flag
-  markedForScrap: boolean;
-  scrapNotes: string | null;
-  
-  // Request creator
-  createdById: string | null;
-  createdByName: string | null;
-  
   createdAt: string;
   updatedAt: string;
 }
 
-export type RequestType = "corrective" | "preventive";
+// Request type: corrective (fix broken) or preventive (scheduled maintenance)
+export type RequestType = "CORRECTIVE" | "PREVENTIVE";
 
-export type RequestStage = 
-  | "new"           // Just created
-  | "assigned"      // Assigned to technician
-  | "in_progress"   // Work started
-  | "repaired"      // Work completed
-  | "scrap";        // Equipment marked for scrap
-
-export type RequestPriority = "low" | "medium" | "high" | "critical";
+// Status flow: NEW → IN_PROGRESS → REPAIRED or SCRAP
+export type RequestStatus = "NEW" | "IN_PROGRESS" | "REPAIRED" | "SCRAP";
 
 // ============================================
-// API Request/Response Types
+// API Input Types
 // ============================================
 
 export interface CreateEquipmentInput {
   name: string;
-  serialNumber: string;
-  category: EquipmentCategory;
   department: string;
-  location: string;
-  assignedTo?: string;
-  assignedToId?: string;
-  purchaseDate: string;
-  warrantyExpiryDate?: string;
-  purchaseCost?: number;
-  vendor?: string;
-  maintenanceTeamId: string;
-  defaultTechnicianId?: string;
-  notes?: string;
-}
-
-export interface CreateTeamInput {
-  name: string;
-  description?: string;
-  specialization: TeamSpecialization;
 }
 
 export interface CreateTechnicianInput {
   name: string;
-  email: string;
-  phone?: string;
-  teamId: string;
-  role?: "technician" | "senior_technician" | "team_lead";
-  skills?: string[];
+  department: string;
 }
 
 export interface CreateRequestInput {
-  subject: string;
-  description: string;
+  title: string;
   equipmentId: string;
   type: RequestType;
-  priority?: RequestPriority;
-  scheduledDate?: string;
-  createdById?: string;
-  createdByName?: string;
+  scheduledDate?: string; // Required for PREVENTIVE type
 }
 
-export interface UpdateRequestInput {
-  stage?: RequestStage;
-  technicianId?: string;
-  duration?: number;
-  scrapNotes?: string;
+export interface UpdateRequestStatusInput {
+  status: RequestStatus;
+  scrapNote?: string; // Required when status is SCRAP
 }
 
 export interface ApiResponse<T = unknown> {
@@ -247,20 +89,46 @@ export interface ApiResponse<T = unknown> {
 }
 
 // ============================================
-// Dashboard / Report Types
+// Kanban Board Types
 // ============================================
 
-export interface RequestsByTeamReport {
-  teamId: string;
-  teamName: string;
-  totalRequests: number;
-  openRequests: number;
-  completedRequests: number;
+export interface KanbanBoard {
+  NEW: MaintenanceRequest[];
+  IN_PROGRESS: MaintenanceRequest[];
+  REPAIRED: MaintenanceRequest[];
+  SCRAP: MaintenanceRequest[];
 }
 
-export interface RequestsByCategoryReport {
-  category: EquipmentCategory;
+// ============================================
+// Calendar Types
+// ============================================
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  type: RequestType;
+  equipmentName: string;
+  status: RequestStatus;
+}
+
+// ============================================
+// Report Types
+// ============================================
+
+export interface DepartmentReport {
+  department: string;
   totalRequests: number;
-  openRequests: number;
-  completedRequests: number;
+  newCount: number;
+  inProgressCount: number;
+  repairedCount: number;
+  scrapCount: number;
+}
+
+export interface EquipmentReport {
+  equipmentId: string;
+  equipmentName: string;
+  department: string;
+  totalRequests: number;
+  isUsable: boolean;
 }

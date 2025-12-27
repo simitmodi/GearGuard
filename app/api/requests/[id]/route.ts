@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { 
   getRequestById, 
-  updateRequestStage, 
-  assignRequest,
-  recordDuration 
+  updateRequestStatus, 
+  assignRequest 
 } from "@/lib/db/requests";
-import type { ApiResponse, MaintenanceRequest, RequestStage } from "@/lib/types";
+import type { ApiResponse, MaintenanceRequest, RequestStatus } from "@/lib/types";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -42,20 +41,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 /**
  * PATCH /api/requests/[id]
- * Update a request (stage, assignment, duration, etc.)
+ * Update a request (status, assignment)
  * 
  * Request body:
  * {
- *   stage?: "new" | "assigned" | "in_progress" | "repaired" | "scrap",
+ *   status?: "NEW" | "IN_PROGRESS" | "REPAIRED" | "SCRAP",
  *   technicianId?: string (for manual assignment),
- *   duration?: number (hours spent on repair),
- *   scrapNotes?: string (notes when moving to scrap)
+ *   scrapNote?: string (required when status is SCRAP)
  * }
  * 
  * Workflow:
- * - Stage update handles: New → Assigned → In Progress → Repaired → Scrap
- * - Moving to "repaired" records completion time and duration
- * - Moving to "scrap" marks the equipment as no longer usable
+ * - Status flow: NEW → IN_PROGRESS → REPAIRED or SCRAP
+ * - Moving to "SCRAP" marks the equipment as no longer usable
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -81,29 +78,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Handle duration recording (without stage change)
-    if (body.duration && !body.stage) {
-      await recordDuration(id, body.duration);
-    }
-
-    // Handle stage update (Kanban drag & drop)
-    if (body.stage) {
-      const validStages: RequestStage[] = ["new", "assigned", "in_progress", "repaired", "scrap"];
-      if (!validStages.includes(body.stage)) {
+    // Handle status update (Kanban drag & drop)
+    if (body.status) {
+      const validStatuses: RequestStatus[] = ["NEW", "IN_PROGRESS", "REPAIRED", "SCRAP"];
+      if (!validStatuses.includes(body.status)) {
         return NextResponse.json<ApiResponse>(
-          { success: false, error: "Invalid stage" },
+          { success: false, error: "Invalid status. Must be NEW, IN_PROGRESS, REPAIRED, or SCRAP" },
           { status: 400 }
         );
       }
 
-      const stageResult = await updateRequestStage(id, body.stage, {
-        duration: body.duration,
-        scrapNotes: body.scrapNotes,
-      });
+      const statusResult = await updateRequestStatus(id, body.status, body.scrapNote);
 
-      if (!stageResult.success) {
+      if (!statusResult.success) {
         return NextResponse.json<ApiResponse>(
-          { success: false, error: stageResult.error },
+          { success: false, error: statusResult.error },
           { status: 400 }
         );
       }

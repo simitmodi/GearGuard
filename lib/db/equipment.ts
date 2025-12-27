@@ -7,13 +7,11 @@ import {
   where,
   addDoc,
   updateDoc,
-  increment,
   orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Equipment, CreateEquipmentInput, EquipmentStatus } from "@/lib/types";
-import { getTeamById } from "./teams";
-import { getTechnicianById } from "./technicians";
+import { ensureDbInitialized } from "@/lib/db-utils";
+import type { Equipment, CreateEquipmentInput } from "@/lib/types";
 
 const COLLECTION = "equipment";
 
@@ -21,6 +19,7 @@ const COLLECTION = "equipment";
  * Get equipment by ID
  */
 export async function getEquipmentById(id: string): Promise<Equipment | null> {
+  ensureDbInitialized();
   const docRef = doc(db, COLLECTION, id);
   const docSnap = await getDoc(docRef);
 
@@ -35,6 +34,7 @@ export async function getEquipmentById(id: string): Promise<Equipment | null> {
  * Get all equipment
  */
 export async function getAllEquipment(): Promise<Equipment[]> {
+  ensureDbInitialized();
   const q = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
   const snap = await getDocs(q);
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Equipment));
@@ -55,97 +55,55 @@ export async function getEquipmentByDepartment(
 }
 
 /**
- * Get equipment by category
+ * Get usable equipment only
  */
-export async function getEquipmentByCategory(
-  category: string
-): Promise<Equipment[]> {
+export async function getUsableEquipment(): Promise<Equipment[]> {
   const q = query(
     collection(db, COLLECTION),
-    where("category", "==", category)
+    where("isUsable", "==", true)
   );
   const snap = await getDocs(q);
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Equipment));
 }
 
 /**
- * Get equipment by assigned employee
+ * Validate equipment - check if equipment exists and is usable
+ * Returns the equipment if valid, throws error otherwise
  */
-export async function getEquipmentByEmployee(
-  employeeId: string
-): Promise<Equipment[]> {
-  const q = query(
-    collection(db, COLLECTION),
-    where("assignedToId", "==", employeeId)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Equipment));
-}
-
-/**
- * Get equipment by maintenance team
- */
-export async function getEquipmentByTeam(
-  teamId: string
-): Promise<Equipment[]> {
-  const q = query(
-    collection(db, COLLECTION),
-    where("maintenanceTeamId", "==", teamId)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Equipment));
-}
-
-/**
- * Check if equipment is usable (not scrapped)
- */
-export async function isEquipmentUsable(id: string): Promise<boolean> {
+export async function validateEquipment(id: string): Promise<Equipment> {
   const equipment = await getEquipmentById(id);
-  if (!equipment) return false;
-  return equipment.isUsable !== false && equipment.status !== "scrapped";
+
+  if (!equipment) {
+    throw new Error("Equipment not found");
+  }
+
+  if (!equipment.isUsable) {
+    throw new Error("Equipment is not usable (scrapped)");
+  }
+
+  return equipment;
 }
 
 /**
  * Create new equipment
  */
 export async function createEquipment(input: CreateEquipmentInput): Promise<Equipment> {
-  // Fetch team details
-  const team = await getTeamById(input.maintenanceTeamId);
-  if (!team) {
-    throw new Error("Maintenance team not found");
-  }
+  ensureDbInitialized();
 
-  // Fetch default technician details if provided
-  let defaultTechnicianName: string | undefined;
-  if (input.defaultTechnicianId) {
-    const technician = await getTechnicianById(input.defaultTechnicianId);
-    defaultTechnicianName = technician?.name;
+  // Input validation
+  if (!input.name?.trim()) {
+    throw new Error("Equipment name is required");
+  }
+  if (!input.department?.trim()) {
+    throw new Error("Department is required");
   }
 
   const now = new Date().toISOString();
   const equipmentData = {
-    name: input.name,
-    serialNumber: input.serialNumber,
-    category: input.category,
-    department: input.department,
-    location: input.location,
-    assignedTo: input.assignedTo ?? null,
-    assignedToId: input.assignedToId ?? null,
-    purchaseDate: input.purchaseDate,
-    warrantyExpiryDate: input.warrantyExpiryDate ?? null,
-    purchaseCost: input.purchaseCost ?? null,
-    vendor: input.vendor ?? null,
-    maintenanceTeamId: input.maintenanceTeamId,
-    maintenanceTeam: team.name,
-    defaultTechnicianId: input.defaultTechnicianId ?? null,
-    defaultTechnicianName: defaultTechnicianName ?? null,
+    name: input.name.trim(),
+    department: input.department.trim(),
     isUsable: true,
-    status: "operational" as EquipmentStatus,
-    lastMaintenanceDate: null,
-    nextMaintenanceDate: null,
-    totalMaintenanceCount: 0,
-    openRequestCount: 0,
-    notes: input.notes ?? null,
+    scrapNote: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -159,55 +117,19 @@ export async function createEquipment(input: CreateEquipmentInput): Promise<Equi
 }
 
 /**
- * Update equipment status
- */
-export async function updateEquipmentStatus(
-  id: string,
-  status: EquipmentStatus
-): Promise<void> {
-  const docRef = doc(db, COLLECTION, id);
-  await updateDoc(docRef, {
-    status,
-    isUsable: status !== "scrapped",
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
  * Mark equipment as scrapped
  */
-export async function markEquipmentAsScrapped(id: string, notes?: string): Promise<void> {
+export async function scrapEquipment(id: string, scrapNote: string): Promise<void> {
+  ensureDbInitialized();
+
+  if (!scrapNote?.trim()) {
+    throw new Error("Scrap note is required");
+  }
+
   const docRef = doc(db, COLLECTION, id);
   await updateDoc(docRef, {
-    status: "scrapped",
     isUsable: false,
-    notes: notes ? `SCRAPPED: ${notes}` : "Equipment marked for scrap",
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Update equipment open request count
- */
-export async function updateEquipmentRequestCount(
-  id: string,
-  delta: number
-): Promise<void> {
-  const docRef = doc(db, COLLECTION, id);
-  await updateDoc(docRef, {
-    openRequestCount: increment(delta),
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Increment total maintenance count
- */
-export async function incrementMaintenanceCount(id: string): Promise<void> {
-  const docRef = doc(db, COLLECTION, id);
-  await updateDoc(docRef, {
-    totalMaintenanceCount: increment(1),
-    lastMaintenanceDate: new Date().toISOString(),
+    scrapNote: scrapNote.trim(),
     updatedAt: new Date().toISOString(),
   });
 }
@@ -217,8 +139,9 @@ export async function incrementMaintenanceCount(id: string): Promise<void> {
  */
 export async function updateEquipment(
   id: string,
-  updates: Partial<Equipment>
+  updates: Partial<Omit<Equipment, "id" | "createdAt">>
 ): Promise<void> {
+  ensureDbInitialized();
   const docRef = doc(db, COLLECTION, id);
   await updateDoc(docRef, {
     ...updates,
@@ -227,16 +150,13 @@ export async function updateEquipment(
 }
 
 /**
- * Search equipment by name or serial number
+ * Search equipment by name
  */
 export async function searchEquipment(searchTerm: string): Promise<Equipment[]> {
-  // Firestore doesn't support full-text search, so we fetch all and filter
   const allEquipment = await getAllEquipment();
   const lowerSearch = searchTerm.toLowerCase();
-  
+
   return allEquipment.filter(
-    (eq) =>
-      eq.name.toLowerCase().includes(lowerSearch) ||
-      eq.serialNumber.toLowerCase().includes(lowerSearch)
+    (eq) => eq.name.toLowerCase().includes(lowerSearch)
   );
 }

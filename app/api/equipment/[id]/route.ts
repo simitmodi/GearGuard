@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { 
   getEquipmentById, 
-  updateEquipmentStatus,
   updateEquipment,
-  markEquipmentAsScrapped
+  scrapEquipment
 } from "@/lib/db/equipment";
-import { getRequestsByEquipment, getOpenRequestsByEquipment } from "@/lib/db/requests";
-import type { ApiResponse, Equipment, MaintenanceRequest, EquipmentStatus } from "@/lib/types";
+import { getRequestsByEquipment } from "@/lib/db/requests";
+import type { ApiResponse, Equipment, MaintenanceRequest } from "@/lib/types";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,14 +16,12 @@ interface RouteParams {
  * Fetch a single equipment by ID
  * Query params:
  *   - includeRequests=true: Include all maintenance requests for this equipment
- *   - openOnly=true: Only include open requests (for Smart Button badge)
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const includeRequests = searchParams.get("includeRequests") === "true";
-    const openOnly = searchParams.get("openOnly") === "true";
 
     const equipment = await getEquipmentById(id);
 
@@ -35,18 +32,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Smart Button: Include maintenance requests if requested
     if (includeRequests) {
-      const requests = openOnly 
-        ? await getOpenRequestsByEquipment(id)
-        : await getRequestsByEquipment(id);
+      const requests = await getRequestsByEquipment(id);
       
-      return NextResponse.json<ApiResponse<{ equipment: Equipment; requests: MaintenanceRequest[]; openCount: number }>>({
+      return NextResponse.json<ApiResponse<{ equipment: Equipment; requests: MaintenanceRequest[] }>>({
         success: true,
         data: {
           equipment,
           requests,
-          openCount: openOnly ? requests.length : (await getOpenRequestsByEquipment(id)).length,
         },
       });
     }
@@ -70,14 +63,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * 
  * Request body:
  * {
- *   status?: "operational" | "under_maintenance" | "scrapped" | "pending_repair",
- *   scrapNotes?: string (notes when scrapping),
  *   name?: string,
- *   location?: string,
- *   assignedTo?: string,
- *   assignedToId?: string,
- *   notes?: string,
- *   nextMaintenanceDate?: string
+ *   department?: string,
+ *   scrapNote?: string (if provided, equipment will be scrapped)
  * }
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
@@ -93,39 +81,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Handle status changes
-    if (body.status) {
-      const validStatuses: EquipmentStatus[] = ["operational", "under_maintenance", "scrapped", "pending_repair"];
-      if (!validStatuses.includes(body.status)) {
-        return NextResponse.json<ApiResponse>(
-          { success: false, error: "Invalid status" },
-          { status: 400 }
-        );
-      }
+    // Handle scrap action
+    if (body.scrapNote) {
+      await scrapEquipment(id, body.scrapNote);
+    } else {
+      // Handle other field updates
+      const updates: Partial<Equipment> = {};
+      if (body.name !== undefined) updates.name = body.name;
+      if (body.department !== undefined) updates.department = body.department;
 
-      // Scrap Logic: Mark equipment as no longer usable
-      if (body.status === "scrapped") {
-        await markEquipmentAsScrapped(id, body.scrapNotes);
-      } else {
-        await updateEquipmentStatus(id, body.status);
+      if (Object.keys(updates).length > 0) {
+        await updateEquipment(id, updates);
       }
-    }
-
-    // Handle other field updates
-    const allowedUpdates: (keyof Equipment)[] = [
-      "name", "location", "assignedTo", "assignedToId", 
-      "notes", "nextMaintenanceDate", "warrantyExpiryDate"
-    ];
-    
-    const updates: Partial<Equipment> = {};
-    for (const key of allowedUpdates) {
-      if (body[key] !== undefined) {
-        updates[key] = body[key];
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await updateEquipment(id, updates);
     }
 
     const updated = await getEquipmentById(id);

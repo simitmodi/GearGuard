@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { 
   getAllTechnicians, 
-  getTechniciansByTeam,
+  getTechniciansByDepartment,
+  getActiveTechnicians,
   createTechnician 
 } from "@/lib/db/technicians";
 import type { ApiResponse, Technician, CreateTechnicianInput } from "@/lib/types";
@@ -10,24 +11,23 @@ import type { ApiResponse, Technician, CreateTechnicianInput } from "@/lib/types
  * GET /api/technicians
  * Fetch all technicians
  * Query params:
- *   - team: Filter by team ID
+ *   - department: Filter by department
  *   - active: if "true", only active technicians
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const teamId = searchParams.get("team");
+    const department = searchParams.get("department");
     const activeOnly = searchParams.get("active") === "true";
 
     let technicians: Technician[];
 
-    if (teamId) {
-      technicians = await getTechniciansByTeam(teamId);
+    if (department) {
+      technicians = await getTechniciansByDepartment(department);
+    } else if (activeOnly) {
+      technicians = await getActiveTechnicians();
     } else {
       technicians = await getAllTechnicians();
-      if (activeOnly) {
-        technicians = technicians.filter((t) => t.isActive);
-      }
     }
 
     return NextResponse.json<ApiResponse<Technician[]>>({
@@ -50,11 +50,7 @@ export async function GET(request: NextRequest) {
  * Request body:
  * {
  *   name: string,
- *   email: string,
- *   phone?: string,
- *   teamId: string,
- *   role?: "technician" | "senior_technician" | "team_lead",
- *   skills?: string[]
+ *   department: string
  * }
  */
 export async function POST(request: NextRequest) {
@@ -62,9 +58,9 @@ export async function POST(request: NextRequest) {
     const body: CreateTechnicianInput = await request.json();
 
     // Validate required fields
-    if (!body.name || !body.email || !body.teamId) {
+    if (!body.name || !body.department) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: "Missing required fields: name, email, teamId" },
+        { success: false, error: "Missing required fields: name, department" },
         { status: 400 }
       );
     }

@@ -2,37 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { 
   createRequest, 
   getAllRequests, 
-  getRequestsGroupedByStage,
-  getPreventiveRequests 
+  getKanbanBoard,
+  getCalendarData 
 } from "@/lib/db/requests";
-import type { CreateRequestInput, ApiResponse, MaintenanceRequest, RequestStage } from "@/lib/types";
+import type { CreateRequestInput, ApiResponse, MaintenanceRequest, KanbanBoard, CalendarEvent } from "@/lib/types";
 
 /**
  * GET /api/requests
  * Fetch all maintenance requests
  * Query params:
- *   - grouped=true: Return requests grouped by stage (for Kanban)
- *   - type=preventive: Return only preventive requests (for Calendar)
+ *   - kanban=true: Return requests grouped by status (for Kanban board)
+ *   - calendar=true: Return calendar events (for Calendar view)
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const grouped = searchParams.get("grouped") === "true";
-    const type = searchParams.get("type");
+    const kanban = searchParams.get("kanban") === "true";
+    const calendar = searchParams.get("calendar") === "true";
 
-    if (grouped) {
-      const groupedRequests = await getRequestsGroupedByStage();
-      return NextResponse.json<ApiResponse<Record<RequestStage, MaintenanceRequest[]>>>({
+    if (kanban) {
+      const board = await getKanbanBoard();
+      return NextResponse.json<ApiResponse<KanbanBoard>>({
         success: true,
-        data: groupedRequests,
+        data: board,
       });
     }
 
-    if (type === "preventive") {
-      const preventiveRequests = await getPreventiveRequests();
-      return NextResponse.json<ApiResponse<MaintenanceRequest[]>>({
+    if (calendar) {
+      const events = await getCalendarData();
+      return NextResponse.json<ApiResponse<CalendarEvent[]>>({
         success: true,
-        data: preventiveRequests,
+        data: events,
       });
     }
 
@@ -52,18 +52,14 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/requests
- * Create a new maintenance request with auto-fill and auto-assignment
+ * Create a new maintenance request with auto-assignment
  * 
  * Request body:
  * {
- *   subject: string,        // What is wrong? (e.g., "Leaking Oil")
- *   description: string,
- *   equipmentId: string,    // System auto-fills category, team from equipment
- *   type: "corrective" | "preventive",
- *   priority?: "low" | "medium" | "high" | "critical",
- *   scheduledDate?: string, // Required for preventive maintenance
- *   createdById?: string,
- *   createdByName?: string
+ *   title: string,          // What is the issue?
+ *   equipmentId: string,    // Equipment being serviced
+ *   type: "CORRECTIVE" | "PREVENTIVE",
+ *   scheduledDate?: string  // Required for PREVENTIVE type
  * }
  */
 export async function POST(request: NextRequest) {
@@ -71,30 +67,30 @@ export async function POST(request: NextRequest) {
     const body: CreateRequestInput = await request.json();
 
     // Validate required fields
-    if (!body.subject || !body.equipmentId || !body.type) {
+    if (!body.title || !body.equipmentId || !body.type) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: "Missing required fields: subject, equipmentId, type" },
+        { success: false, error: "Missing required fields: title, equipmentId, type" },
         { status: 400 }
       );
     }
 
     // Validate type enum
-    if (!["corrective", "preventive"].includes(body.type)) {
+    if (!["CORRECTIVE", "PREVENTIVE"].includes(body.type)) {
       return NextResponse.json<ApiResponse>(
-        { success: false, error: "Invalid type. Must be 'corrective' or 'preventive'" },
+        { success: false, error: "Invalid type. Must be 'CORRECTIVE' or 'PREVENTIVE'" },
         { status: 400 }
       );
     }
 
     // For preventive maintenance, scheduledDate should be provided
-    if (body.type === "preventive" && !body.scheduledDate) {
+    if (body.type === "PREVENTIVE" && !body.scheduledDate) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Scheduled date is required for preventive maintenance" },
         { status: 400 }
       );
     }
 
-    // Create the request with auto-fill and auto-assignment
+    // Create the request with auto-assignment
     const result = await createRequest(body);
 
     if (!result.success) {

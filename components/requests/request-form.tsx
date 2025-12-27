@@ -4,9 +4,9 @@ import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { collection, getDocs } from "firebase/firestore"
+import { collection, getDocs, query, where } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { Loader2 } from "lucide-react"
+import { Loader2, CalendarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +18,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -28,25 +27,15 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import type { Equipment, RequestPriority } from "@/lib/types"
-
-const PRIORITIES: { value: RequestPriority; label: string; color: string }[] = [
-  { value: "low", label: "Low", color: "text-green-600" },
-  { value: "medium", label: "Medium", color: "text-yellow-600" },
-  { value: "high", label: "High", color: "text-orange-600" },
-  { value: "critical", label: "Critical", color: "text-red-600" },
-]
+import type { Equipment, RequestType } from "@/lib/types"
 
 const formSchema = z.object({
-  subject: z.string().min(3, "Subject must be at least 3 characters"),
+  title: z.string().min(3, "Title must be at least 3 characters"),
   equipmentId: z.string().min(1, "Equipment is required"),
-  type: z.enum(["corrective", "preventive"]),
-  priority: z.enum(["low", "medium", "high", "critical"]),
-  description: z.string().min(5, "Description is required"),
+  type: z.enum(["CORRECTIVE", "PREVENTIVE"]),
   scheduledDate: z.date().optional(),
 })
 
@@ -64,11 +53,9 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      subject: "",
+      title: "",
       equipmentId: preselectedEquipmentId || "",
-      type: preselectedDate ? "preventive" : "corrective",
-      priority: "medium",
-      description: "",
+      type: preselectedDate ? "PREVENTIVE" : "CORRECTIVE",
       scheduledDate: preselectedDate,
     },
   })
@@ -76,14 +63,13 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
   React.useEffect(() => {
     const fetchEquipment = async () => {
       try {
-        const snap = await getDocs(collection(db, "equipment"))
+        const q = query(collection(db, "equipment"), where("isUsable", "==", true))
+        const snap = await getDocs(q)
         const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Equipment[]
-        // Filter out scrapped equipment
-        const usableEquipment = list.filter(e => e.isUsable !== false && e.status !== "scrapped")
-        setEquipmentList(usableEquipment)
+        setEquipmentList(list)
 
         if (preselectedEquipmentId) {
-          const pre = usableEquipment.find(e => e.id === preselectedEquipmentId)
+          const pre = list.find(e => e.id === preselectedEquipmentId)
           if (pre) setSelectedEquipment(pre)
         }
       } catch (error) {
@@ -101,17 +87,21 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    // Validate preventive requires scheduledDate
+    if (values.type === "PREVENTIVE" && !values.scheduledDate) {
+      toast.error("Scheduled date is required for preventive maintenance")
+      return
+    }
+
     setIsLoading(true)
     try {
       const response = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subject: values.subject,
-          description: values.description,
+          title: values.title,
           equipmentId: values.equipmentId,
           type: values.type,
-          priority: values.priority,
           scheduledDate: values.scheduledDate?.toISOString() ?? null,
         }),
       })
@@ -139,15 +129,15 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Subject - What is wrong? */}
+        {/* Title - What is the issue? */}
         <FormField
           control={form.control}
-          name="subject"
+          name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Subject *</FormLabel>
+              <FormLabel>Title *</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Leaking Oil, Unusual Noise" {...field} />
+                <Input placeholder="e.g., Leaking Oil, Routine Checkup" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -174,7 +164,7 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
                 <SelectContent>
                   {equipmentList.map(eq => (
                     <SelectItem key={eq.id} value={eq.id}>
-                      {eq.name} ({eq.serialNumber})
+                      {eq.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -186,65 +176,36 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
 
         {/* Auto-filled Equipment Details */}
         {selectedEquipment && (
-          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <div>Category: <span className="font-medium text-foreground">{selectedEquipment.category}</span></div>
-            <div>Location: <span className="font-medium text-foreground">{selectedEquipment.location}</span></div>
-            <div>Team: <span className="font-medium text-foreground">{selectedEquipment.maintenanceTeam}</span></div>
+          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
             <div>Department: <span className="font-medium text-foreground">{selectedEquipment.department}</span></div>
           </div>
         )}
 
-        {/* Request Type and Priority */}
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Request Type *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="corrective">Corrective (Breakdown)</SelectItem>
-                    <SelectItem value="preventive">Preventive (Scheduled)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="priority"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Priority *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Priority" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {PRIORITIES.map(p => (
-                      <SelectItem key={p.value} value={p.value}>
-                        <span className={p.color}>{p.label}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        {/* Request Type */}
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Request Type *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="CORRECTIVE">Corrective (Breakdown)</SelectItem>
+                  <SelectItem value="PREVENTIVE">Preventive (Scheduled)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        {/* Scheduled Date (for preventive maintenance) */}
-        {watchType === 'preventive' && (
+        {/* Scheduled Date - Only for Preventive */}
+        {watchType === "PREVENTIVE" && (
           <FormField
             control={form.control}
             name="scheduledDate"
@@ -281,25 +242,6 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
             )}
           />
         )}
-
-        {/* Description */}
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description *</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Describe the issue in detail..." 
-                  className="min-h-[100px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -3,8 +3,7 @@ import {
   getAllEquipment, 
   createEquipment,
   getEquipmentByDepartment,
-  getEquipmentByCategory,
-  getEquipmentByTeam,
+  getUsableEquipment,
   searchEquipment
 } from "@/lib/db/equipment";
 import type { ApiResponse, Equipment, CreateEquipmentInput } from "@/lib/types";
@@ -14,16 +13,14 @@ import type { ApiResponse, Equipment, CreateEquipmentInput } from "@/lib/types";
  * Fetch all equipment with optional filters
  * Query params:
  *   - department: Filter by department
- *   - category: Filter by category
- *   - team: Filter by maintenance team ID
- *   - search: Search by name or serial number
+ *   - usable: Filter by usable status (true/false)
+ *   - search: Search by name
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const department = searchParams.get("department");
-    const category = searchParams.get("category");
-    const teamId = searchParams.get("team");
+    const usable = searchParams.get("usable");
     const search = searchParams.get("search");
 
     let equipment: Equipment[];
@@ -32,10 +29,8 @@ export async function GET(request: NextRequest) {
       equipment = await searchEquipment(search);
     } else if (department) {
       equipment = await getEquipmentByDepartment(department);
-    } else if (category) {
-      equipment = await getEquipmentByCategory(category);
-    } else if (teamId) {
-      equipment = await getEquipmentByTeam(teamId);
+    } else if (usable === "true") {
+      equipment = await getUsableEquipment();
     } else {
       equipment = await getAllEquipment();
     }
@@ -60,19 +55,7 @@ export async function GET(request: NextRequest) {
  * Request body:
  * {
  *   name: string,
- *   serialNumber: string,
- *   category: string,
- *   department: string,
- *   location: string,
- *   assignedTo?: string,
- *   assignedToId?: string,
- *   purchaseDate: string,
- *   warrantyExpiryDate?: string,
- *   purchaseCost?: number,
- *   vendor?: string,
- *   maintenanceTeamId: string,
- *   defaultTechnicianId?: string,
- *   notes?: string
+ *   department: string
  * }
  */
 export async function POST(request: NextRequest) {
@@ -80,13 +63,11 @@ export async function POST(request: NextRequest) {
     const body: CreateEquipmentInput = await request.json();
 
     // Validate required fields
-    if (!body.name || !body.serialNumber || !body.category || 
-        !body.department || !body.location || !body.purchaseDate || 
-        !body.maintenanceTeamId) {
+    if (!body.name || !body.department) {
       return NextResponse.json<ApiResponse>(
         { 
           success: false, 
-          error: "Missing required fields: name, serialNumber, category, department, location, purchaseDate, maintenanceTeamId" 
+          error: "Missing required fields: name, department" 
         },
         { status: 400 }
       );
