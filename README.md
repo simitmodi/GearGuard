@@ -29,6 +29,15 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Environment Setup (Firebase)
+
+- Duplicate `.env.example` as `.env.local` and fill values from your Firebase project:
+	- API key, Auth domain, Project ID, Storage bucket, Messaging sender ID, App ID, Measurement ID.
+- In Firebase Console: Project Settings → General → Your Apps (Web) → SDK setup and configuration.
+- All keys used by the client must be prefixed with `NEXT_PUBLIC_`.
+
+If any required variable is missing, the app will throw a clear error listing missing keys.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

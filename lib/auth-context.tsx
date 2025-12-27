@@ -23,18 +23,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      console.warn("Auth not initialized, skipping auth listener");
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         // Fetch role from Firestore
         try {
+          if (!db) {
+            console.warn("Firestore not initialized, cannot fetch role");
+            setUserRole("user");
+            return;
+          }
           const docRef = doc(db, "users", currentUser.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             setUserRole(docSnap.data().role as "user" | "technician" | "manager");
           } else {
-             console.log("User document does not exist yet (might be creating)");
-             setUserRole("user"); 
+            console.log("User document does not exist yet (might be creating)");
+            setUserRole("user");
           }
         } catch (error) {
           console.error("Error fetching user role:", error);

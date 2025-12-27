@@ -2,11 +2,17 @@
 
 import React, { useEffect, useState } from "react"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
-import { collection, onSnapshot, doc, updateDoc, query, orderBy } from "firebase/firestore"
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { updateRequestStatus } from "@/lib/db/requests"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Clock } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 
 interface Request {
   id: string
@@ -30,6 +36,9 @@ const columns = [
 export function KanbanBoard() {
   const [requests, setRequests] = useState<Request[]>([])
   const [loading, setLoading] = useState(true)
+  const [completingRequest, setCompletingRequest] = useState<string | null>(null)
+  const [duration, setDuration] = useState("")
+  const [pendingDrag, setPendingDrag] = useState<DropResult | null>(null)
 
   useEffect(() => {
     const q = query(collection(db, "requests"), orderBy("createdAt", "desc"))
@@ -41,7 +50,7 @@ export function KanbanBoard() {
     return () => unsubscribe()
   }, [])
 
-  const onDragEnd = async (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result
 
     if (!destination) return
@@ -53,96 +62,160 @@ export function KanbanBoard() {
       return
     }
 
-    const newStatus = destination.droppableId
-    
+    const newStatus = destination.droppableId as any
+
+    // If moving to REPAIRED, ask for duration
+    if (newStatus === "REPAIRED") {
+      setPendingDrag(result)
+      setCompletingRequest(draggableId)
+      setDuration("")
+      return
+    }
+
+    // Otherwise, standard update
+    await processUpdate(draggableId, newStatus)
+  }
+
+  const processUpdate = async (id: string, status: any, durationVal?: number) => {
     // Optimistic update
     const updatedRequests = requests.map(req => {
-        if (req.id === draggableId) {
-            return { ...req, status: newStatus }
-        }
-        return req
+      if (req.id === id) {
+        return { ...req, status: status }
+      }
+      return req
     })
     setRequests(updatedRequests)
 
-    // Firestore Update
-    try {
-        const docRef = doc(db, "requests", draggableId)
-        await updateDoc(docRef, { status: newStatus })
-    } catch (error) {
-        console.error("Failed to update status", error)
-        // Revert (could fetch again or revert state)
+    // Backend Update
+    const result = await updateRequestStatus(id, status, undefined, durationVal)
+    if (!result.success) {
+      toast.error("Failed to update status")
+      // Revert would go here (fetch again)
     }
+  }
+
+  const confirmCompletion = async () => {
+    if (!pendingDrag || !completingRequest) return
+
+    const minutes = parseInt(duration)
+    if (isNaN(minutes) || minutes < 0) {
+      toast.error("Please enter a valid duration")
+      return
+    }
+
+    await processUpdate(completingRequest, "REPAIRED", minutes)
+    setCompletingRequest(null)
+    setPendingDrag(null)
+  }
+
+  // Cancel move
+  const cancelCompletion = () => {
+    setCompletingRequest(null)
+    setPendingDrag(null)
+    // The UI automatically reverts since we didn't update state
   }
 
   // Group requests by column
   const getColumnRequests = (columnId: string) => {
-      return requests.filter(req => req.status === columnId)
+    return requests.filter(req => req.status === columnId)
   }
 
   if (loading) return <div>Loading board...</div>
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex h-full gap-4 overflow-x-auto pb-4">
-        {columns.map((column) => (
-          <div key={column.id} className="flex h-full min-w-[300px] flex-col rounded-lg bg-muted/50 p-4">
-            <h3 className="mb-4 font-semibold text-lg flex items-center justify-between">
+    <>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex h-full gap-4 overflow-x-auto pb-4">
+          {columns.map((column) => (
+            <div key={column.id} className="flex h-full min-w-[300px] flex-col rounded-lg bg-muted/50 p-4">
+              <h3 className="mb-4 font-semibold text-lg flex items-center justify-between">
                 {column.title}
                 <Badge variant="secondary">{getColumnRequests(column.id).length}</Badge>
-            </h3>
-            <Droppable droppableId={column.id}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="flex flex-1 flex-col gap-3"
-                >
-                  {getColumnRequests(column.id).map((req, index) => {
+              </h3>
+              <Droppable droppableId={column.id}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="flex flex-1 flex-col gap-3"
+                  >
+                    {getColumnRequests(column.id).map((req, index) => {
                       const isOverdue = req.scheduledDate && new Date(req.scheduledDate) < new Date() && req.status !== 'repaired' && req.status !== 'scrap'
                       return (
                         <Draggable key={req.id} draggableId={req.id} index={index}>
-                        {(provided) => (
+                          {(provided) => (
                             <Card
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`cursor-grab active:cursor-grabbing ${isOverdue ? 'border-red-500 border-2' : ''}`}
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={`cursor-grab active:cursor-grabbing ${isOverdue ? 'border-red-500 border-2' : ''}`}
                             >
-                            <CardHeader className="p-4 pb-2">
+                              <CardHeader className="p-4 pb-2">
                                 <div className="flex justify-between items-start">
-                                    <Badge variant={req.type === 'preventive' ? 'outline' : 'default'} className="mb-2">
-                                        {req.type}
-                                    </Badge>
-                                    {isOverdue && <AlertCircle className="h-4 w-4 text-red-500" />}
+                                  <Badge variant={req.type === 'preventive' ? 'outline' : 'default'} className="mb-2">
+                                    {req.type}
+                                  </Badge>
+                                  {isOverdue && <AlertCircle className="h-4 w-4 text-red-500" />}
                                 </div>
                                 <CardTitle className="text-sm font-medium leading-tight">
-                                {req.equipmentName}
+                                  {req.equipmentName}
                                 </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-2 text-xs text-muted-foreground">
+                              </CardHeader>
+                              <CardContent className="p-4 pt-2 text-xs text-muted-foreground">
                                 <p className="line-clamp-2 mb-2">{req.description}</p>
                                 <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>
-                                        {new Date(req.createdAt).toLocaleDateString()}
-                                    </span>
+                                  <Clock className="h-3 w-3" />
+                                  <span>
+                                    {new Date(req.createdAt).toLocaleDateString()}
+                                  </span>
                                 </div>
                                 <div className="mt-2 text-[10px] uppercase font-bold text-primary/70">
-                                    {req.maintenanceTeam}
+                                  {req.maintenanceTeam}
                                 </div>
-                            </CardContent>
+                              </CardContent>
                             </Card>
-                        )}
+                          )}
                         </Draggable>
                       )
-                  })}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+
+      <Dialog open={!!completingRequest} onOpenChange={(open) => !open && cancelCompletion()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Request</DialogTitle>
+            <DialogDescription>
+              Please enter the time taken to repair this equipment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="duration" className="text-right">
+                Duration (mins)
+              </Label>
+              <Input
+                id="duration"
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="col-span-3"
+                autoFocus
+              />
+            </div>
           </div>
-        ))}
-      </div>
-    </DragDropContext>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelCompletion}>Cancel</Button>
+            <Button onClick={confirmCompletion}>Complete Job</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
