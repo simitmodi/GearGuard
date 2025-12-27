@@ -38,6 +38,17 @@ export interface Technician {
 }
 
 /**
+ * Team - Group of technicians/employees
+ */
+export interface Team {
+  id: string;
+  name: string;
+  members: string[]; // List of names
+  company: string;
+  createdAt: string;
+}
+
+/**
  * Maintenance Request - Repair/maintenance job record
  * Status flow: NEW → IN_PROGRESS → REPAIRED or SCRAP
  */
@@ -85,6 +96,12 @@ export interface CreateEquipmentInput {
 export interface CreateTechnicianInput {
   name: string;
   department: string;
+}
+
+export interface CreateTeamInput {
+  name: string;
+  members: string[];
+  company: string;
 }
 
 export interface CreateRequestInput {

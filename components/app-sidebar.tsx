@@ -51,14 +51,9 @@ const items = [
     icon: Wrench,
   },
   {
-    title: "Maintenance Requests",
+    title: "Reporting",
     url: "/dashboard/requests",
     icon: ClipboardList,
-  },
-  {
-    title: "Reporting",
-    url: "/dashboard/reporting", // Placeholder
-    icon: Home, // Change later
   },
   {
     title: "Teams",
