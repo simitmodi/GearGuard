@@ -22,6 +22,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { getUserProfile } from "@/lib/db/users"
+import { UserRole } from "@/lib/types"
+
 const formSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -31,6 +35,7 @@ export function LoginForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [selectedRole, setSelectedRole] = React.useState<UserRole>("USER")
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -44,10 +49,34 @@ export function LoginForm() {
     setIsLoading(true)
     setError(null)
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password)
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password)
+      const user = userCredential.user
+
+      const profile = await getUserProfile(user.uid)
+
+      if (!profile) {
+        // Fallback for users without profile (legacy or direct signup)
+        // If we are strict, we should fail or auto-create.
+        // For now, let's assume if no profile, they are USER.
+        if (selectedRole !== "USER") {
+          throw new Error("No profile found. Please login as User.")
+        }
+        // Ideally create profile here if missing?
+      } else {
+        if (profile.role !== selectedRole) {
+          await auth.signOut()
+          throw new Error(`Unauthorized. You are not registered as a ${selectedRole.toLowerCase()}.`)
+        }
+      }
+
       router.push("/dashboard")
     } catch (err: any) {
+      console.error(err)
       setError(err.message || "Failed to login")
+      // Ensure we are signed out if validation failed after login
+      if (auth.currentUser) {
+        await auth.signOut()
+      }
     } finally {
       setIsLoading(false)
     }
@@ -57,9 +86,17 @@ export function LoginForm() {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Sign In</CardTitle>
-        <CardDescription>Enter your email and password to access your account</CardDescription>
+        <CardDescription>Select your role to continue</CardDescription>
       </CardHeader>
       <CardContent>
+        <Tabs defaultValue="USER" onValueChange={(v: string) => setSelectedRole(v as UserRole)} className="w-full mb-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="USER">User</TabsTrigger>
+            <TabsTrigger value="TECHNICIAN">Technician</TabsTrigger>
+            <TabsTrigger value="MANAGER">Manager</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -69,7 +106,7 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="admin@gearguard.com" {...field} />
+                    <Input placeholder="name@gearguard.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -88,10 +125,10 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+              Login as {selectedRole.charAt(0) + selectedRole.slice(1).toLowerCase()}
             </Button>
           </form>
         </Form>

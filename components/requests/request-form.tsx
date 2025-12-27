@@ -6,8 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { collection, getDocs, query, where } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { createRequest } from "@/lib/db/requests"
+import { createRequest, createPreventiveRequest } from "@/lib/db/requests"
 import { Loader2, CalendarIcon } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { getUserProfile } from "@/lib/db/users"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -59,6 +61,7 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
   const [equipmentList, setEquipmentList] = React.useState<Equipment[]>([])
   const [selectedEquipment, setSelectedEquipment] = React.useState<Equipment | null>(null)
   const [assignedResult, setAssignedResult] = React.useState<{ tech: string | null; request: string } | null>(null)
+  const { user, userRole } = useAuth()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -106,12 +109,36 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
     setIsLoading(true)
     try {
       // Call DB function directly (client-side) to use authenticated user session
-      const result = await createRequest({
-        title: values.title,
-        equipmentId: values.equipmentId,
-        type: values.type,
-        scheduledDate: values.scheduledDate?.toISOString() ?? undefined,
-      });
+      if (!user) throw new Error("Must be logged in");
+      const profile = await getUserProfile(user.uid);
+
+      if (!profile) throw new Error("User profile not found");
+
+      let result;
+
+      if (values.type === "PREVENTIVE") {
+        // Explicitly use the new Preventive function
+        // Import it first? It needs to be imported. 
+        // Assuming I add the import at the top in a separate edit or I can't access it. 
+        // I will use `request-types-logic` here.
+
+
+
+        result = await createPreventiveRequest({
+          title: values.title,
+          equipmentId: values.equipmentId,
+          scheduledDate: values.scheduledDate!.toISOString(),
+        }, { id: profile.id, role: profile.role });
+
+      } else {
+        // Standard Corrective Request
+        result = await createRequest({
+          title: values.title,
+          equipmentId: values.equipmentId,
+          type: values.type,
+          scheduledDate: values.scheduledDate?.toISOString() ?? undefined,
+        }, { id: profile.id, role: profile.role });
+      }
 
       if (!result.success) {
         throw new Error(result.error || "Failed to submit request")
@@ -126,7 +153,6 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
         tech: result.request.technicianName || "Pending Assignment",
         request: result.request.title,
       })
-      // toast.success("Request submitted successfully") // Handled by dialog now
     } catch (error) {
       console.error("Error creating request:", error)
       toast.error(error instanceof Error ? error.message : "Failed to submit request")
@@ -192,14 +218,18 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
           </div>
         )}
 
-        {/* Request Type */}
+        {/* Request Type - Restricted for Users */}
         <FormField
           control={form.control}
           name="type"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Request Type *</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                disabled={userRole !== "MANAGER"} // Only Managers can change type
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
@@ -207,10 +237,12 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="CORRECTIVE">Corrective (Breakdown)</SelectItem>
-                  <SelectItem value="PREVENTIVE">Preventive (Scheduled)</SelectItem>
+                  {userRole === "MANAGER" && (
+                    <SelectItem value="PREVENTIVE">Preventive (Scheduled)</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
-              <FormMessage />
+              {userRole !== "MANAGER" && <FormMessage>Users can only report corrective issues.</FormMessage>}
             </FormItem>
           )}
         />

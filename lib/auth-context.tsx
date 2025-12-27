@@ -5,9 +5,11 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
+import { UserRole } from "@/lib/types";
+
 interface AuthContextType {
   user: User | null;
-  userRole: "user" | "technician" | "manager" | null;
+  userRole: UserRole | null;
   loading: boolean;
 }
 
@@ -19,7 +21,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<"user" | "technician" | "manager" | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,23 +35,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         // Fetch role from Firestore
-        try {
-          if (!db) {
-            console.warn("Firestore not initialized, cannot fetch role");
-            setUserRole("user");
-            return;
-          }
-          const docRef = doc(db, "users", currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserRole(docSnap.data().role as "user" | "technician" | "manager");
-          } else {
-            console.log("User document does not exist yet (might be creating)");
-            setUserRole("user");
-          }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-          setUserRole("user");
+
+        const docRef = doc(db, "users", currentUser.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          // Validate role or default to USER, normalize to Uppercase
+          const role = ((data.role as string)?.toUpperCase() as UserRole) || "USER";
+          setUserRole(role);
+        } else {
+          console.log("User document does not exist yet");
+          setUserRole("USER");
         }
       } else {
         setUserRole(null);

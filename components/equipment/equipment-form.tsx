@@ -9,6 +9,7 @@ import { createEquipment } from "@/lib/db/equipment"
 
 
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Form,
   FormControl,
@@ -28,7 +29,7 @@ const formSchema = z.object({
   warrantyExpiration: z.date().optional(),
   location: z.string().optional(),
   assignedTo: z.string().optional(),
-  maintenanceTeam: z.string().optional(),
+  teamId: z.string().optional(),
 })
 
 interface EquipmentFormProps {
@@ -46,9 +47,21 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
       serialNumber: "",
       location: "",
       assignedTo: "",
-      maintenanceTeam: "",
+      teamId: "",
     },
   })
+
+  // Fetch teams
+  const [teams, setTeams] = React.useState<{ id: string, name: string }[]>([])
+  React.useEffect(() => {
+    // Only fetching client side needed here, imported function
+    const loadTeams = async () => {
+      const { getAllTeams } = await import("@/lib/db/teams");
+      const t = await getAllTeams();
+      setTeams(t);
+    }
+    loadTeams();
+  }, [])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
@@ -62,7 +75,8 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
         warrantyExpiration: values.warrantyExpiration?.toISOString(),
         location: values.location,
         assignedTo: values.assignedTo,
-        maintenanceTeam: values.maintenanceTeam,
+        maintenanceTeam: teams.find(t => t.id === values.teamId)?.name || "", // Legacy
+        teamId: values.teamId,
       });
 
       form.reset()
@@ -155,13 +169,24 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
 
           <FormField
             control={form.control}
-            name="maintenanceTeam"
+            name="teamId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Maintenance Team</FormLabel>
-                <FormControl>
-                  <Input placeholder="Mechanics" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Team" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

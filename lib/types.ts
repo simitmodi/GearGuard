@@ -15,7 +15,8 @@ export interface Equipment {
   warrantyExpiration: string | null;
   location: string | null;
   assignedTo: string | null; // Employee name
-  maintenanceTeam: string | null; // e.g., "Mechanics", "IT"
+  maintenanceTeam: string | null; // Legacy string or Team Name
+  teamId?: string; // Link to MaintenanceTeam
   defaultTechnicianId: string | null;
   isUsable: boolean;
   scrapNote: string | null;
@@ -29,10 +30,21 @@ export interface Equipment {
 export interface Technician {
   id: string;
   name: string;
+  email?: string; // Contact info
   department: string;
-  // Team mapping could be handled via department or explicit field, using department for now
+  teamId?: string; // Link to MaintenanceTeam
   activeTasks: number;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MaintenanceTeam {
+  id: string;
+  name: string; // e.g. "Mechanics", "IT Support"
+  description?: string;
+  members?: string[]; // Frontend simple list
+  company?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,6 +79,9 @@ export interface MaintenanceRequest {
   isOverdue: boolean;
   durationMinutes: number | null; // Track repair time
   completedAt: string | null;
+  createdBy: string | null; // User ID who created the request
+  maintenanceTeam: string | null; // Team Name at time of creation
+  teamId: string | null; // Team ID
   createdAt: string;
   updatedAt: string;
 }
@@ -90,12 +105,22 @@ export interface CreateEquipmentInput {
   location?: string;
   assignedTo?: string;
   maintenanceTeam?: string;
+  teamId?: string; // New field
   defaultTechnicianId?: string;
 }
 
 export interface CreateTechnicianInput {
   name: string;
   department: string;
+  email?: string;
+  teamId?: string;
+}
+
+export interface CreateMaintenanceTeamInput {
+  name: string;
+  description?: string;
+  members?: string[];
+  company?: string;
 }
 
 export interface CreateTeamInput {
@@ -166,4 +191,23 @@ export interface EquipmentReport {
   department: string;
   totalRequests: number;
   isUsable: boolean;
+}
+
+/**
+ * User Role - Types of system users
+ */
+export type UserRole = "USER" | "TECHNICIAN" | "MANAGER";
+
+/**
+ * User Profile - Extended user data linked to Auth UID
+ */
+export interface UserProfile {
+  id: string; // matches auth.uid
+  name: string;
+  email: string;
+  role: UserRole;
+  departmentId?: string; // For USER and TECHNICIAN
+  technicianId?: string; // Link to Technician record if role is TECHNICIAN
+  createdAt: string;
+  updatedAt: string;
 }

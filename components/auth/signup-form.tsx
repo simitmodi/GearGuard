@@ -28,7 +28,7 @@ const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email(),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["user", "technician", "manager"]),
+  role: z.enum(["USER", "TECHNICIAN", "MANAGER"]),
 })
 
 export function SignupForm() {
@@ -42,9 +42,10 @@ export function SignupForm() {
       name: "",
       email: "",
       password: "",
-      role: "user",
+      role: "USER",
     },
   })
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
@@ -122,7 +123,7 @@ export function SignupForm() {
                 </FormItem>
               )}
             />
-             <FormField
+            <FormField
               control={form.control}
               name="role"
               render={({ field }) => (
@@ -135,9 +136,9 @@ export function SignupForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="user">User (Requester)</SelectItem>
-                      <SelectItem value="technician">Technician</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="USER">User (Requester)</SelectItem>
+                      <SelectItem value="TECHNICIAN">Technician</SelectItem>
+                      <SelectItem value="MANAGER">Manager</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

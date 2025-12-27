@@ -68,6 +68,23 @@ export async function getTechniciansByDepartment(department: string): Promise<Te
 }
 
 /**
+ * Get technicians by team
+ */
+export async function getTechniciansByTeam(teamId: string): Promise<Technician[]> {
+  const q = query(
+    collection(db, COLLECTION),
+    where("teamId", "==", teamId),
+    where("isActive", "==", true)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Technician));
+}
+
+/**
+ * Find the technician with the minimum active tasks in a department
+ * Used for auto-assignment of maintenance requests
+ */
+/**
  * Find the technician with the minimum active tasks in a department
  * Used for auto-assignment of maintenance requests
  */
@@ -81,6 +98,23 @@ export async function findTechnicianWithMinTasks(
   }
 
   // Sort by activeTasks ascending and pick the first one
+  return technicians.reduce((min, tech) =>
+    tech.activeTasks < min.activeTasks ? tech : min
+  );
+}
+
+/**
+ * Find the technician with the minimum active tasks in a team
+ */
+export async function findTechnicianWithMinTasksByTeam(
+  teamId: string
+): Promise<Technician | null> {
+  const technicians = await getTechniciansByTeam(teamId);
+
+  if (technicians.length === 0) {
+    return null;
+  }
+
   return technicians.reduce((min, tech) =>
     tech.activeTasks < min.activeTasks ? tech : min
   );
@@ -104,6 +138,8 @@ export async function createTechnician(input: CreateTechnicianInput): Promise<Te
   const technicianData = {
     name: input.name.trim(),
     department: input.department.trim(),
+    email: input.email?.trim() || null,
+    teamId: input.teamId || null,
     activeTasks: 0,
     isActive: true,
     createdAt: now,

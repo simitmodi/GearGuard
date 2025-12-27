@@ -87,8 +87,15 @@ export async function validateEquipment(id: string): Promise<Equipment> {
 /**
  * Create new equipment
  */
-export async function createEquipment(input: CreateEquipmentInput): Promise<Equipment> {
+export async function createEquipment(
+  input: CreateEquipmentInput,
+  userProfile?: { role: string }
+): Promise<Equipment> {
   ensureDbInitialized();
+
+  if (userProfile && userProfile.role !== "MANAGER") {
+    throw new Error("Only Managers can add equipment.");
+  }
 
   // Input validation
   if (!input.name?.trim()) {
@@ -108,6 +115,7 @@ export async function createEquipment(input: CreateEquipmentInput): Promise<Equi
     location: input.location?.trim() || null,
     assignedTo: input.assignedTo?.trim() || null,
     maintenanceTeam: input.maintenanceTeam?.trim() || null,
+    teamId: input.teamId || null,
     defaultTechnicianId: input.defaultTechnicianId || null,
     isUsable: true,
     scrapNote: null,
@@ -126,8 +134,16 @@ export async function createEquipment(input: CreateEquipmentInput): Promise<Equi
 /**
  * Mark equipment as scrapped
  */
-export async function scrapEquipment(id: string, scrapNote: string): Promise<void> {
+export async function scrapEquipment(
+  id: string,
+  scrapNote: string,
+  userProfile?: { role: string }
+): Promise<void> {
   ensureDbInitialized();
+
+  if (userProfile && userProfile.role !== "MANAGER") {
+    throw new Error("Only Managers can scrap equipment.");
+  }
 
   if (!scrapNote?.trim()) {
     throw new Error("Scrap note is required");
@@ -144,11 +160,20 @@ export async function scrapEquipment(id: string, scrapNote: string): Promise<voi
 /**
  * Update equipment details
  */
+/**
+ * Update equipment details
+ */
 export async function updateEquipment(
   id: string,
-  updates: Partial<Omit<Equipment, "id" | "createdAt">>
+  updates: Partial<Omit<Equipment, "id" | "createdAt">>,
+  userProfile?: { role: string }
 ): Promise<void> {
   ensureDbInitialized();
+
+  if (userProfile && userProfile.role !== "MANAGER") {
+    throw new Error("Only Managers can update equipment details.");
+  }
+
   const docRef = doc(db, COLLECTION, id);
   await updateDoc(docRef, {
     ...updates,
