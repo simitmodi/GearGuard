@@ -29,6 +29,17 @@ GearGuard is a powerful, reliable, and user-friendly Computerized Maintenance Ma
 - **Live Timeline**: Google Calendar-style red line indicator showing the exact current time.
 - **Smart Scheduling**: Visual planning for preventive maintenance tasks to minimize downtime.
 
+## Environment Setup (Firebase)
+
+- Duplicate `.env.example` as `.env.local` and fill values from your Firebase project:
+  - API key, Auth domain, Project ID, Storage bucket, Messaging sender ID, App ID, Measurement ID.
+- In Firebase Console: Project Settings → General → Your Apps (Web) → SDK setup and configuration.
+- All keys used by the client must be prefixed with `NEXT_PUBLIC_`.
+
+If any required variable is missing, the app will throw a clear error listing missing keys.
+
+## Deploy on Vercel
+
 ### 🎨 Modern UI/UX
 
 - **Responsive Design**: Fully optimized for Desktop, Tablets, and Mobile devices.
