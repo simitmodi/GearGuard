@@ -95,39 +95,42 @@ export default function EquipmentPage() {
         />
       </div>
 
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
+      <div className="rounded-md border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+            <Table className="min-w-[800px]">
+              <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
+              <TableHead>Equipment Name</TableHead>
+              <TableHead>Employee</TableHead>
+              <TableHead>Department</TableHead>
               <TableHead>Serial Number</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Team</TableHead>
+              <TableHead>Technician</TableHead>
+              <TableHead>Category</TableHead>
              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
              {loading ? (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">Loading...</TableCell>
+                    <TableCell colSpan={7} className="text-center h-24">Loading...</TableCell>
                 </TableRow>
              ) : filteredEquipment.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No equipment found.</TableCell>
+                    <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No equipment found.</TableCell>
                 </TableRow>
              ) : (
-                filteredEquipment.map((item) => (
+                filteredEquipment.map((item: any) => (
                     <TableRow key={item.id}>
                         <TableCell className="font-medium">
                             <Link href={`/dashboard/equipment/${item.id}`} className="hover:underline">
                                 {item.name}
                             </Link>
                         </TableCell>
-                        <TableCell className="capitalize">{item.category}</TableCell>
+                        <TableCell>{item.employee || "-"}</TableCell>
+                        <TableCell>{item.department || "-"}</TableCell>
                         <TableCell>{item.serialNumber}</TableCell>
-                        <TableCell>{item.location}</TableCell>
-                         <TableCell className="capitalize">{item.maintenanceTeam}</TableCell>
+                        <TableCell>{item.technician || "-"}</TableCell>
+                        <TableCell className="capitalize">{item.category}</TableCell>
                         <TableCell className="text-right">
                              <Link href={`/dashboard/equipment/${item.id}`}>
                                 <Button variant="ghost" size="sm">
@@ -139,7 +142,8 @@ export default function EquipmentPage() {
                 ))
              )}
           </TableBody>
-        </Table>
+            </Table>
+        </div>
       </div>
     </div>
   )

@@ -23,7 +23,7 @@ export default function DashboardPage() {
       subtext: "Assign Carefully",
       className: "bg-blue-100 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900",
       textClass: "text-blue-600 dark:text-blue-400",
-      href: "/dashboard/kanban"
+      href: "/dashboard/teams" // Pointing to Teams or Kanban? Logic says Technician Load -> Teams or Calendar. Keeping valid link.
     },
     {
       title: "Open Requests",
@@ -41,7 +41,7 @@ export default function DashboardPage() {
            <h1 className="text-2xl font-bold tracking-tight">Dashboard Overview</h1>
         </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat, index) => (
           <Link key={index} href={stat.href}>
             <Card className={`transition-all hover:scale-105 cursor-pointer border-2 ${stat.className}`}>
@@ -67,9 +67,9 @@ export default function DashboardPage() {
              <p className="text-sm text-muted-foreground mb-4">Latest requests and updates across the system.</p>
         </div>
         <div className="p-0">
-             {/* We can re-use the Request Table logic here later, for now a static list to match style */}
-             <div className="w-full overflow-auto">
-                <table className="w-full caption-bottom text-sm border-t">
+             {/* Responsive Table Wrapper */}
+             <div className="w-full overflow-x-auto">
+                <table className="w-full caption-bottom text-sm border-t min-w-[600px]">
                     <thead className="[&_tr]:border-b">
                         <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                             <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Subject</th>

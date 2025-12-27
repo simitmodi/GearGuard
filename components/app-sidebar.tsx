@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/auth-context"
 import { auth } from "@/lib/firebase"
 import { signOut } from "firebase/auth"
 import { useRouter, usePathname } from "next/navigation"
+import Link from "next/link"
 
 
 // Menu items.
@@ -37,7 +38,12 @@ const items = [
   {
     title: "Dashboard",
     url: "/dashboard",
-    icon: Home,
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Maintenance Calendar",
+    url: "/dashboard/calendar",
+    icon: Calendar,
   },
   {
     title: "Equipment",
@@ -45,19 +51,19 @@ const items = [
     icon: Wrench,
   },
   {
-    title: "Requests",
+    title: "Maintenance Requests",
     url: "/dashboard/requests",
     icon: ClipboardList,
   },
   {
-    title: "Kanban Board",
-    url: "/dashboard/kanban",
-    icon: LayoutDashboard,
+    title: "Reporting",
+    url: "/dashboard/reporting", // Placeholder
+    icon: Home, // Change later
   },
   {
-    title: "Calendar",
-    url: "/dashboard/calendar",
-    icon: Calendar,
+    title: "Teams",
+    url: "/dashboard/teams", // Placeholder
+    icon: User2,
   },
 ]
 
@@ -77,31 +83,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <a href="#">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Hammer className="size-4" />
+              <Link href="/dashboard" className="h-14">
+                <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Hammer className="size-6" />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">GearGuard</span>
-                  <span className="truncate text-xs">Maintenance</span>
+                <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                  <span className="truncate font-semibold text-base">GearGuard</span>
+                  <span className="truncate text-sm">Maintenance</span>
                 </div>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sm">Platform</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-3">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                  <SidebarMenuButton asChild isActive={pathname === item.url} className="h-12 text-base">
+                    <Link href={item.url}>
+                      <item.icon className="!size-6" />
+                      <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -112,13 +118,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" onClick={handleLogout}>
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
-                  <LogOut className="size-4" />
+            <SidebarMenuButton size="lg" onClick={handleLogout} className="h-14">
+                <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
+                  <LogOut className="size-6" />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{user?.displayName || "User"}</span>
-                  <span className="truncate text-xs capitalize">{userRole || "Loading..."}</span>
+                <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                  <span className="truncate font-semibold text-base">{user?.displayName || "User"}</span>
+                  <span className="truncate text-sm capitalize">{userRole || "Loading..."}</span>
                 </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -89,7 +89,7 @@ export function EquipmentForm({ onSuccess }: { onSuccess?: () => void }) {
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
             control={form.control}
             name="category"
@@ -128,7 +128,7 @@ export function EquipmentForm({ onSuccess }: { onSuccess?: () => void }) {
             />
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <FormField
             control={form.control}
             name="department"

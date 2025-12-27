@@ -127,7 +127,7 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
         />
         
         {selectedEquipment && (
-            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                  <div>Category: <span className="font-medium text-foreground">{selectedEquipment.category}</span></div>
                  <div>Team: <span className="font-medium text-foreground">{selectedEquipment.maintenanceTeam}</span></div>
             </div>
