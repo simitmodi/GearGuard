@@ -88,76 +88,7 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
             </FormItem>
           )}
         />
-<<<<<<< HEAD
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                    <SelectItem value="heavy-machinery">Heavy Machinery</SelectItem>
-                    <SelectItem value="electronics">Electronics</SelectItem>
-                    <SelectItem value="vehicles">Vehicles</SelectItem>
-                    <SelectItem value="tools">Tools</SelectItem>
-                    </SelectContent>
-                </Select>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-             <FormField
-            control={form.control}
-            name="serialNumber"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Serial Number</FormLabel>
-                <FormControl>
-                    <Input placeholder="SN-12345" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <FormField
-            control={form.control}
-            name="department"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Department</FormLabel>
-                <FormControl>
-                    <Input placeholder="Production" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                    <Input placeholder="Floor 1, Zone A" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-=======
->>>>>>> b5ecb609f10b46c7ff7a20f238988f542a12f709
+
 
         <FormField
           control={form.control}
