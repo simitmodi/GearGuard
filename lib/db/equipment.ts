@@ -102,6 +102,13 @@ export async function createEquipment(input: CreateEquipmentInput): Promise<Equi
   const equipmentData = {
     name: input.name.trim(),
     department: input.department.trim(),
+    serialNumber: input.serialNumber?.trim() || null,
+    purchaseDate: input.purchaseDate || null,
+    warrantyExpiration: input.warrantyExpiration || null,
+    location: input.location?.trim() || null,
+    assignedTo: input.assignedTo?.trim() || null,
+    maintenanceTeam: input.maintenanceTeam?.trim() || null,
+    defaultTechnicianId: input.defaultTechnicianId || null,
     isUsable: true,
     scrapNote: null,
     createdAt: now,

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { collection, getDocs, query, where } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { createRequest } from "@/lib/db/requests"
 import { Loader2, CalendarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,14 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -49,6 +58,7 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
   const [isLoading, setIsLoading] = React.useState(false)
   const [equipmentList, setEquipmentList] = React.useState<Equipment[]>([])
   const [selectedEquipment, setSelectedEquipment] = React.useState<Equipment | null>(null)
+  const [assignedResult, setAssignedResult] = React.useState<{ tech: string | null; request: string } | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -95,27 +105,28 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
 
     setIsLoading(true)
     try {
-      const response = await fetch("/api/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: values.title,
-          equipmentId: values.equipmentId,
-          type: values.type,
-          scheduledDate: values.scheduledDate?.toISOString() ?? null,
-        }),
-      })
+      // Call DB function directly (client-side) to use authenticated user session
+      const result = await createRequest({
+        title: values.title,
+        equipmentId: values.equipmentId,
+        type: values.type,
+        scheduledDate: values.scheduledDate?.toISOString() ?? undefined,
+      });
 
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to submit request")
+      if (!result.success) {
+        throw new Error(result.error || "Failed to submit request")
       }
 
       form.reset()
       setSelectedEquipment(null)
       onSuccess?.()
-      toast.success("Request submitted successfully")
+
+      // Show confirmation dialog with assigned technician
+      setAssignedResult({
+        tech: result.request.technicianName || "Pending Assignment",
+        request: result.request.title,
+      })
+      // toast.success("Request submitted successfully") // Handled by dialog now
     } catch (error) {
       console.error("Error creating request:", error)
       toast.error(error instanceof Error ? error.message : "Failed to submit request")
@@ -151,9 +162,9 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
           render={({ field }) => (
             <FormItem>
               <FormLabel>Equipment *</FormLabel>
-              <Select 
-                onValueChange={handleEquipmentChange} 
-                defaultValue={field.value} 
+              <Select
+                onValueChange={handleEquipmentChange}
+                defaultValue={field.value}
                 disabled={!!preselectedEquipmentId}
               >
                 <FormControl>
@@ -248,6 +259,37 @@ export function RequestForm({ onSuccess, preselectedEquipmentId, preselectedDate
           Submit Request
         </Button>
       </form>
-    </Form>
+
+      <Dialog open={!!assignedResult} onOpenChange={(open) => !open && setAssignedResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Created Successfully! 🎉</DialogTitle>
+            <DialogDescription>
+              Your maintenance request has been logged.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-2">
+            <div className="flex justify-between items-center bg-muted p-2 rounded">
+              <span className="text-sm font-medium">Request:</span>
+              <span className="text-sm">{assignedResult?.request}</span>
+            </div>
+            <div className="flex justify-between items-center bg-primary/10 p-2 rounded border border-primary/20">
+              <span className="text-sm font-medium text-primary">Assigned Technician:</span>
+              <span className="text-lg font-bold text-primary">
+                {assignedResult?.tech}
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground text-center pt-2">
+              The assigned technician has been notified and task count updated.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setAssignedResult(null)}>Okay, Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Form >
   )
 }

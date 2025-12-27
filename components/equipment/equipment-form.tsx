@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Loader2 } from "lucide-react"
+import { createEquipment } from "@/lib/db/equipment"
+
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +23,12 @@ import { toast } from "sonner"
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   department: z.string().min(1, "Department is required"),
+  serialNumber: z.string().optional(),
+  purchaseDate: z.date().optional(),
+  warrantyExpiration: z.date().optional(),
+  location: z.string().optional(),
+  assignedTo: z.string().optional(),
+  maintenanceTeam: z.string().optional(),
 })
 
 interface EquipmentFormProps {
@@ -29,7 +37,7 @@ interface EquipmentFormProps {
 
 export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
   const [isLoading, setIsLoading] = React.useState(false)
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -41,20 +49,17 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/equipment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: values.name,
-          department: values.department,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to add equipment")
-      }
+      // Call DB function directly (client-side) to use authenticated user session
+      await createEquipment({
+        name: values.name,
+        department: values.department,
+        serialNumber: values.serialNumber,
+        purchaseDate: values.purchaseDate?.toISOString(),
+        warrantyExpiration: values.warrantyExpiration?.toISOString(),
+        location: values.location,
+        assignedTo: values.assignedTo,
+        maintenanceTeam: values.maintenanceTeam,
+      });
 
       form.reset()
       onSuccess?.()
@@ -97,6 +102,66 @@ export function EquipmentForm({ onSuccess }: EquipmentFormProps) {
             </FormItem>
           )}
         />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="serialNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Serial Number</FormLabel>
+                <FormControl>
+                  <Input placeholder="SN-123456" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="location"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <FormControl>
+                  <Input placeholder="Floor 1, Zone B" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="assignedTo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assigned To (Employee)</FormLabel>
+                <FormControl>
+                  <Input placeholder="John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="maintenanceTeam"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Maintenance Team</FormLabel>
+                <FormControl>
+                  <Input placeholder="Mechanics" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -3,20 +3,21 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Wrench, ClipboardList, AlertTriangle } from "lucide-react"
 import Link from 'next/link';
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function DashboardPage() {
-  // Mock data for now, eventually fetch from Firestore
-  const stats = [
+  const [stats, setStats] = React.useState([
     {
       title: "Total Equipment",
-      value: "12",
+      value: "...",
       description: "Active machines",
       icon: Wrench,
       href: "/dashboard/equipment"
     },
     {
       title: "Open Requests",
-      value: "5",
+      value: "...",
       description: "Requiring attention",
       icon: AlertTriangle,
       color: "text-red-500",
@@ -24,37 +25,70 @@ export default function DashboardPage() {
     },
     {
       title: "In Progress",
-      value: "3",
+      value: "...",
       description: "Being repaired",
       icon: ClipboardList,
       href: "/dashboard/kanban"
     }
-  ]
+  ]);
+
+  React.useEffect(() => {
+    // Real-time listener for equipment count
+    const unsubEquipment = onSnapshot(query(collection(db, "equipment"), where("isUsable", "==", true)), (snap) => {
+      setStats(prev => {
+        const newStats = [...prev];
+        newStats[0].value = snap.size.toString();
+        return newStats;
+      });
+    });
+
+    // Real-time listener for requests
+    const unsubRequests = onSnapshot(collection(db, "requests"), (snap) => {
+      const newRequests = snap.docs.filter(d => d.data().status === 'NEW').length;
+      const inProgressRequests = snap.docs.filter(d => d.data().status === 'IN_PROGRESS').length;
+
+      setStats(prev => {
+        const newStats = [...prev];
+        newStats[1].value = newRequests.toString();
+        newStats[2].value = inProgressRequests.toString();
+        return newStats;
+      });
+    });
+
+    return () => {
+      unsubEquipment();
+      unsubRequests();
+    }
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-        <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
       <div className="grid gap-4 md:grid-cols-3">
         {stats.map((stat, index) => (
-            <Link key={index} href={stat.href}>
-          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 text-muted-foreground ${stat.color || ''}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
-                {stat.description}
-              </p>
-            </CardContent>
-          </Card>
+          <Link key={index} href={stat.href}>
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className={`h-4 w-4 text-muted-foreground ${stat.color || ''}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
           </Link>
         ))}
       </div>
-      <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
+      <div className="min-h-[500px] flex-1 rounded-xl bg-muted/50 p-4">
+        <div className="flex items-center justify-center h-full text-muted-foreground">
+          Chart placeholder (Recharts installed)
+        </div>
+      </div>
     </div>
   )
 }

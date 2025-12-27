@@ -10,6 +10,13 @@ export interface Equipment {
   id: string;
   name: string;
   department: string;
+  serialNumber: string | null;
+  purchaseDate: string | null;
+  warrantyExpiration: string | null;
+  location: string | null;
+  assignedTo: string | null; // Employee name
+  maintenanceTeam: string | null; // e.g., "Mechanics", "IT"
+  defaultTechnicianId: string | null;
   isUsable: boolean;
   scrapNote: string | null;
   createdAt: string;
@@ -23,6 +30,7 @@ export interface Technician {
   id: string;
   name: string;
   department: string;
+  // Team mapping could be handled via department or explicit field, using department for now
   activeTasks: number;
   isActive: boolean;
   createdAt: string;
@@ -37,15 +45,17 @@ export interface MaintenanceRequest {
   id: string;
   title: string;
   equipmentId: string;
-  equipmentName: string; // Denormalized for display
+  equipmentName: string;
   department: string;
   technicianId: string | null;
-  technicianName: string | null; // Denormalized for display
+  technicianName: string | null;
   type: RequestType;
   status: RequestStatus;
-  scheduledDate: string | null; // For preventive maintenance
+  scheduledDate: string | null;
   dueDate: string | null;
   isOverdue: boolean;
+  durationMinutes: number | null; // Track repair time
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +73,13 @@ export type RequestStatus = "NEW" | "IN_PROGRESS" | "REPAIRED" | "SCRAP";
 export interface CreateEquipmentInput {
   name: string;
   department: string;
+  serialNumber?: string;
+  purchaseDate?: string;
+  warrantyExpiration?: string;
+  location?: string;
+  assignedTo?: string;
+  maintenanceTeam?: string;
+  defaultTechnicianId?: string;
 }
 
 export interface CreateTechnicianInput {
@@ -74,12 +91,13 @@ export interface CreateRequestInput {
   title: string;
   equipmentId: string;
   type: RequestType;
-  scheduledDate?: string; // Required for PREVENTIVE type
+  scheduledDate?: string;
 }
 
 export interface UpdateRequestStatusInput {
   status: RequestStatus;
-  scrapNote?: string; // Required when status is SCRAP
+  scrapNote?: string;
+  durationMinutes?: number; // Added for completion
 }
 
 export interface ApiResponse<T = unknown> {
